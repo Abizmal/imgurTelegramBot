@@ -11,7 +11,6 @@ using Imgur.API.Models;
 using ImgurTelegramBot.Models;
 
 using Quartz;
-using Quartz.Util;
 
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -53,7 +52,7 @@ namespace ImgurTelegramBot
 
         private void ProcessUpdate(Update update)
         {
-            if(SetStats(update) && !update.Message.Text.IsNullOrWhiteSpace() && update.Message.Text.Equals("/start"))
+            if(SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
             {
                 _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Welcome! Just forward me a message with an image");
             }
@@ -79,7 +78,7 @@ namespace ImgurTelegramBot
                 return;
             }
 
-            if (!update.Message.Text.IsNullOrWhiteSpace() && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
+            if (!string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
             {
                 using(var db = new ImgurDbContext())
                 {
