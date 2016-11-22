@@ -17,7 +17,7 @@ namespace ImgurTelegramBot
                             .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
                             .Build();
 
-            scheduler.ScheduleJob(job, trigger);
+//            scheduler.ScheduleJob(job, trigger);
         }
     }
 
