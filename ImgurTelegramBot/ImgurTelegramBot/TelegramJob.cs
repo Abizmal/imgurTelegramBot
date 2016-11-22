@@ -1,10 +1,14 @@
-﻿using System.Configuration;
+﻿using System;
+using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
 using Imgur.API.Authentication.Impl;
 using Imgur.API.Endpoints.Impl;
 using Imgur.API.Models;
+
+using ImgurTelegramBot.Models;
 
 using Quartz;
 
@@ -18,21 +22,36 @@ namespace ImgurTelegramBot
     public class TelegramJob: IJob
     {
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
-        private const string OffsetFileName = "offset.txt";
-        private const int MaximumFileSize = 10485760; //10MB
+        private int _maximumFileSize;
 
         public void Execute(IJobExecutionContext context)
         {
-            var updates = _bot.GetUpdatesAsync(GetOffset()).Result;
-            foreach(var update in updates)
+            using(var db = new ImgurDbContext())
             {
-                ProcessUpdate(update);
-                SetOffset(update.Id + 1);
+                try
+                {
+                    var setting = db.Settings.FirstOrDefault();
+                    var offset = setting.Offset;
+                    _maximumFileSize = setting.MaximumFileSize;
+
+                    var updates = _bot.GetUpdatesAsync(offset).Result;
+                    foreach(var update in updates)
+                    {
+                        ProcessUpdate(update);
+                        db.Settings.First().Offset = update.Id + 1;
+                        db.SaveChanges();
+                    }
+                }
+                catch(Exception e)
+                {
+                    Trace.TraceError(e.Message);
+                }
             }
         }
 
         private void ProcessUpdate(Update update)
         {
+            SetStats(update);
             var fileId = GetFileId(update);
             if(fileId != null)
             {
@@ -48,7 +67,7 @@ namespace ImgurTelegramBot
                     }
                 }
             }
-            var currentType = update.Message.Document.MimeType?.Split('/')[0];
+            var currentType = update.Message.Document?.MimeType?.Split('/')[0];
             if(currentType != null && !currentType.Equals("image"))
             {
                 _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Something went wrong. Your image should be less then 10 MB and be, actually, image, not {update.Message.Document.MimeType}.");
@@ -57,11 +76,33 @@ namespace ImgurTelegramBot
             _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
         }
 
+        private static void SetStats(Update update)
+        {
+            using(var db = new ImgurDbContext())
+            {
+                var existingUser = db.Users.FirstOrDefault(u => u.Username.Equals(update.Message.Chat.Username));
+                if(existingUser == null)
+                {
+                    db.Users.Add(new Models.User {
+                                     ChatId = update.Message.Chat.Id,
+                                     Created = DateTime.Now,
+                                     MessagesCount = 1,
+                                     Username = update.Message.Chat.Username
+                                 });
+                }
+                else
+                {
+                    existingUser.MessagesCount++;
+                }
+                db.SaveChanges();
+            }
+        }
+
         private string GetFileId(Update update)
         {
             if(update.Message.Photo != null && update.Message.Photo.Length > 0)
             {
-                var correctSizes = update.Message.Photo.Where(p => p.FileSize <= MaximumFileSize).ToList();
+                var correctSizes = update.Message.Photo.Where(p => p.FileSize <= _maximumFileSize).ToList();
                 if(correctSizes.Count == 0)
                 {
                     _bot.SendTextMessageAsync(update.Message.Chat.Id, "Image size should be less them 10Mb");
@@ -83,21 +124,6 @@ namespace ImgurTelegramBot
             var endpoint = new ImageEndpoint(imgur);
             var result = endpoint.UploadImageStreamAsync(stream, title: title).Result;
             return result;
-        }
-
-        private static int GetOffset()
-        {
-            var result = -1;
-            if(File.Exists(OffsetFileName))
-            {
-                var content = File.ReadAllText(OffsetFileName);
-                int.TryParse(content, out result);
-            }
-            return result;
-        }
-        private static void SetOffset(int offset)
-        {
-            File.WriteAllText(OffsetFileName, offset.ToString());
         }
     }
 }
