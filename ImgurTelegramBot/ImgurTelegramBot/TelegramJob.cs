@@ -11,6 +11,7 @@ using Imgur.API.Models;
 using ImgurTelegramBot.Models;
 
 using Quartz;
+using Quartz.Util;
 
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -45,13 +46,17 @@ namespace ImgurTelegramBot
                 catch(Exception e)
                 {
                     Trace.TraceError(e.Message);
+                    Trace.TraceError(e.StackTrace);
                 }
             }
         }
 
         private void ProcessUpdate(Update update)
         {
-            SetStats(update);
+            if(SetStats(update) && !update.Message.Text.IsNullOrWhiteSpace() && update.Message.Text.Equals("/start"))
+            {
+                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Welcome! Just forward me a message with an image");
+            }
             var fileId = GetFileId(update);
             if(fileId != null)
             {
@@ -74,7 +79,7 @@ namespace ImgurTelegramBot
                 return;
             }
 
-            if (update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
+            if (!update.Message.Text.IsNullOrWhiteSpace() && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
             {
                 using(var db = new ImgurDbContext())
                 {
@@ -88,13 +93,15 @@ namespace ImgurTelegramBot
             _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
         }
 
-        private static void SetStats(Update update)
+        private static bool SetStats(Update update)
         {
+            var newUser = false;
             using(var db = new ImgurDbContext())
             {
                 var existingUser = db.Users.FirstOrDefault(u => u.Username.Equals(update.Message.Chat.Username));
                 if(existingUser == null)
                 {
+                    newUser = true;
                     db.Users.Add(new Models.User {
                                      ChatId = update.Message.Chat.Id,
                                      Created = DateTime.Now,
@@ -108,6 +115,7 @@ namespace ImgurTelegramBot
                 }
                 db.SaveChanges();
             }
+            return newUser;
         }
 
         private string GetFileId(Update update)
