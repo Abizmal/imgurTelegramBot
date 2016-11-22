@@ -82,6 +82,7 @@ namespace ImgurTelegramBot
                     var last = db.Users.OrderByDescending(u => u.Created).First();
                     _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Users count: {users}, last registred: {last.Username}");
                 }
+                return;
             }
 
             _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
