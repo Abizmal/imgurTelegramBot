@@ -14,7 +14,7 @@ namespace ImgurTelegramBot
             var job = JobBuilder.Create<TelegramJob>().Build();
 
             var trigger = TriggerBuilder.Create()
-                            .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+                            .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
                             .Build();
 
             scheduler.ScheduleJob(job, trigger);

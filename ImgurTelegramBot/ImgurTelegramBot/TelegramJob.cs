@@ -14,6 +14,8 @@ using Quartz;
 
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 using File = System.IO.File;
 
@@ -52,44 +54,59 @@ namespace ImgurTelegramBot
 
         private void ProcessUpdate(Update update)
         {
-            if(SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
+            if (update.Type == UpdateType.CallbackQueryUpdate)
             {
-                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Welcome! Just forward me a message with an image");
-            }
-            var fileId = GetFileId(update);
-            if(fileId != null)
-            {
-                var photo = _bot.GetFileAsync(fileId).Result;
-                var title = update.Message.Caption;
-                using(photo.FileStream)
+                if(DeleteImage(update.CallbackQuery.Data))
                 {
-                    var uploadResult = UploadPhoto(photo.FileStream, title);
-                    if(!string.IsNullOrEmpty(uploadResult?.Link))
+                    _bot.AnswerCallbackQueryAsync(update.CallbackQuery.Id, "Deleted");
+                    var result = _bot.EditMessageReplyMarkupAsync(update.CallbackQuery.Message.Chat.Id, update.CallbackQuery.Message.MessageId).Result;
+                }
+            }
+            else
+            {
+                if (SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
+                {
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Welcome! Just forward me a message with an image");
+                }
+                var fileId = GetFileId(update);
+                if (fileId != null)
+                {
+                    var photo = _bot.GetFileAsync(fileId).Result;
+                    var title = update.Message.Caption;
+                    using (photo.FileStream)
                     {
-                        _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for you image: {uploadResult.Link}", disableWebPagePreview: true);
-                        return;
+                        var uploadResult = UploadPhoto(photo.FileStream, title);
+                        if (!string.IsNullOrEmpty(uploadResult?.Link))
+                        {
+                            var button = new InlineKeyboardButton("Delete", uploadResult.DeleteHash);
+                            var markup = new InlineKeyboardMarkup();
+                            markup.InlineKeyboard = new[] { new[] { button } };
+
+                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for you image: {uploadResult.Link}", disableWebPagePreview: true, replyMarkup: markup);
+                            return;
+                        }
                     }
                 }
-            }
-            var currentType = update.Message.Document?.MimeType?.Split('/')[0];
-            if(currentType != null && !currentType.Equals("image"))
-            {
-                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Something went wrong. Your image should be less then 10 MB and be, actually, image, not {update.Message.Document.MimeType}.");
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
-            {
-                using(var db = new ImgurDbContext())
+                var currentType = update.Message.Document?.MimeType?.Split('/')[0];
+                if (currentType != null && !currentType.Equals("image"))
                 {
-                    var users = db.Users.Count();
-                    var last = db.Users.OrderByDescending(u => u.Created).First();
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Users count: {users}, last registred: {last.Username}");
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Something went wrong. Your image should be less then 10 MB and be, actually, image, not {update.Message.Document.MimeType}.");
+                    return;
                 }
-                return;
-            }
 
-            _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
+                if (!string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
+                {
+                    using (var db = new ImgurDbContext())
+                    {
+                        var users = db.Users.Count();
+                        var last = db.Users.OrderByDescending(u => u.Created).First();
+                        _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Users count: {users}, last registred: {last.Username}");
+                    }
+                    return;
+                }
+
+                _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
+            }
         }
 
         private static bool SetStats(Update update)
@@ -142,6 +159,14 @@ namespace ImgurTelegramBot
             var imgur = new ImgurClient(ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.AppSettings["ImgurClientSecret"]);
             var endpoint = new ImageEndpoint(imgur);
             var result = endpoint.UploadImageStreamAsync(stream, title: title).Result;
+            return result;
+        }
+
+        private static bool DeleteImage(string data)
+        {
+            var imgur = new ImgurClient(ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.AppSettings["ImgurClientSecret"]);
+            var endpoint = new ImageEndpoint(imgur);
+            var result = endpoint.DeleteImageAsync(data).Result;
             return result;
         }
     }
