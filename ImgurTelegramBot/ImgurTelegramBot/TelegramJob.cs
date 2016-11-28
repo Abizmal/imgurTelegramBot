@@ -51,9 +51,17 @@ namespace ImgurTelegramBot
                             db.Settings.First().Offset = update.Id + 1;
                             db.SaveChanges();
                         }
-                       
+
                         db.Settings.First().Offset = update.Id + 1;
                         db.SaveChanges();
+                    }
+                }
+                catch(AggregateException a)
+                {
+                    foreach(var exception in a.InnerExceptions)
+                    {
+                        Trace.TraceError(exception.Message);
+                        Trace.TraceError(exception.StackTrace);
                     }
                 }
                 catch(Exception e)
