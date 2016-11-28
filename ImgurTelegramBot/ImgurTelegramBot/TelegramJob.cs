@@ -10,6 +10,8 @@ using Imgur.API.Models;
 
 using ImgurTelegramBot.Models;
 
+using Newtonsoft.Json;
+
 using Quartz;
 
 using Telegram.Bot;
@@ -74,10 +76,19 @@ namespace ImgurTelegramBot
 
         private void ProcessUpdate(Update update)
         {
-            if(update.Type == UpdateType.CallbackQueryUpdate)
+            DateTime? reset;
+
+            if (update.Type == UpdateType.CallbackQueryUpdate)
             {
-                if(DeleteImage(update.CallbackQuery.Data))
+                if (!IsLimitRemains(out reset))
                 {
+                    Trace.TraceError("Reset: " + reset);
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                }
+
+                if (DeleteImage(update.CallbackQuery.Data))
+                {
+
                     _bot.AnswerCallbackQueryAsync(update.CallbackQuery.Id, "Deleted");
                     var result = _bot.EditMessageReplyMarkupAsync(update.CallbackQuery.Message.Chat.Id, update.CallbackQuery.Message.MessageId).Result;
                 }
@@ -96,8 +107,14 @@ namespace ImgurTelegramBot
                     using(photo.FileStream)
                     {
                         var bytes = ReadFully(photo.FileStream);
+                        if(!IsLimitRemains(out reset))
+                        {
+                            Trace.TraceError("Reset: " + reset);
+                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                        }
+
                         var uploadResult = UploadPhoto(bytes, title);
-                        if(!string.IsNullOrEmpty(uploadResult?.Link))
+                        if (!string.IsNullOrEmpty(uploadResult?.Link))
                         {
                             var button = new InlineKeyboardButton("Delete", uploadResult.DeleteHash);
                             var markup = new InlineKeyboardMarkup();
@@ -182,6 +199,34 @@ namespace ImgurTelegramBot
                 return update.Message.Document.FileId;
             }
             return null;
+        }
+
+        private static bool IsLimitRemains(out DateTime? reset)
+        {
+            reset = null;
+            var imgur = new ImgurClient(ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.AppSettings["ImgurClientSecret"]);
+            var endpoint = new ImageEndpoint(imgur);
+            var get = endpoint.HttpClient.GetAsync("https://api.imgur.com/3/credits").Result;
+            var content = get.Content.ReadAsStringAsync().Result;
+            var credit = JsonConvert.DeserializeObject<ImgurCredit>(content);
+            if(credit?.data != null)
+            {
+                reset = UnixTimeStampToDateTime(credit.data.UserReset);
+
+                if (credit.data.UserRemaining > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        {
+            // Unix timestamp is seconds past epoch
+            var dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
+            return dtDateTime;
         }
 
         private static IImage UploadPhoto(byte[] stream, string title)

@@ -90,6 +90,8 @@
       <DependentUpon>201611221438490_init.cs</DependentUpon>
     </Compile>
     <Compile Include="Migrations\Configuration.cs" />
+    <Compile Include="Models\Data.cs" />
+    <Compile Include="Models\ImgurCredit.cs" />
     <Compile Include="Models\ImgurDbContext.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
