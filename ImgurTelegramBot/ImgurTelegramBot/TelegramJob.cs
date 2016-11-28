@@ -39,10 +39,19 @@ namespace ImgurTelegramBot
                     var updates = _bot.GetUpdatesAsync(offset).Result;
                     foreach(var update in updates)
                     {
-                        if(update.CallbackQuery != null || update.Message != null)
+                        try
                         {
-                            ProcessUpdate(update);
+                            if(update.CallbackQuery != null || update.Message != null)
+                            {
+                                ProcessUpdate(update);
+                            }
                         }
+                        finally
+                        {
+                            db.Settings.First().Offset = update.Id + 1;
+                            db.SaveChanges();
+                        }
+                       
                         db.Settings.First().Offset = update.Id + 1;
                         db.SaveChanges();
                     }
