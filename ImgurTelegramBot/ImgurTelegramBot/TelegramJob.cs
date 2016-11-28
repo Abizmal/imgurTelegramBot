@@ -84,6 +84,7 @@ namespace ImgurTelegramBot
                 {
                     Trace.TraceError("Reset: " + reset);
                     _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                    return;
                 }
 
                 if (DeleteImage(update.CallbackQuery.Data))
@@ -91,6 +92,7 @@ namespace ImgurTelegramBot
 
                     _bot.AnswerCallbackQueryAsync(update.CallbackQuery.Id, "Deleted");
                     var result = _bot.EditMessageReplyMarkupAsync(update.CallbackQuery.Message.Chat.Id, update.CallbackQuery.Message.MessageId).Result;
+                    return;
                 }
             }
             else
@@ -111,6 +113,7 @@ namespace ImgurTelegramBot
                         {
                             Trace.TraceError("Reset: " + reset);
                             _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                            return;
                         }
 
                         var uploadResult = UploadPhoto(bytes, title);
@@ -203,6 +206,7 @@ namespace ImgurTelegramBot
 
         private static bool IsLimitRemains(out DateTime? reset)
         {
+            Trace.TraceError("Getting limit");
             reset = null;
             var imgur = new ImgurClient(ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.AppSettings["ImgurClientSecret"]);
             var endpoint = new ImageEndpoint(imgur);
