@@ -39,7 +39,10 @@ namespace ImgurTelegramBot
                     var updates = _bot.GetUpdatesAsync(offset).Result;
                     foreach(var update in updates)
                     {
-                        ProcessUpdate(update);
+                        if(update.CallbackQuery != null || update.Message != null)
+                        {
+                            ProcessUpdate(update);
+                        }
                         db.Settings.First().Offset = update.Id + 1;
                         db.SaveChanges();
                     }
@@ -54,7 +57,7 @@ namespace ImgurTelegramBot
 
         private void ProcessUpdate(Update update)
         {
-            if (update.Type == UpdateType.CallbackQueryUpdate)
+            if(update.Type == UpdateType.CallbackQueryUpdate)
             {
                 if(DeleteImage(update.CallbackQuery.Data))
                 {
@@ -64,19 +67,19 @@ namespace ImgurTelegramBot
             }
             else
             {
-                if (SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
+                if(SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
                 {
                     _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Welcome! Just forward me a message with an image");
                 }
                 var fileId = GetFileId(update);
-                if (fileId != null)
+                if(fileId != null)
                 {
                     var photo = _bot.GetFileAsync(fileId).Result;
                     var title = update.Message.Caption;
-                    using (photo.FileStream)
+                    using(photo.FileStream)
                     {
                         var uploadResult = UploadPhoto(photo.FileStream, title);
-                        if (!string.IsNullOrEmpty(uploadResult?.Link))
+                        if(!string.IsNullOrEmpty(uploadResult?.Link))
                         {
                             var button = new InlineKeyboardButton("Delete", uploadResult.DeleteHash);
                             var markup = new InlineKeyboardMarkup();
@@ -88,15 +91,15 @@ namespace ImgurTelegramBot
                     }
                 }
                 var currentType = update.Message.Document?.MimeType?.Split('/')[0];
-                if (currentType != null && !currentType.Equals("image"))
+                if(currentType != null && !currentType.Equals("image"))
                 {
                     _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Something went wrong. Your image should be less then 10 MB and be, actually, image, not {update.Message.Document.MimeType}.");
                     return;
                 }
 
-                if (!string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
+                if(!string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
                 {
-                    using (var db = new ImgurDbContext())
+                    using(var db = new ImgurDbContext())
                     {
                         var users = db.Users.Count();
                         var last = db.Users.OrderByDescending(u => u.Created).First();
