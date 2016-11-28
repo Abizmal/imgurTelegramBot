@@ -87,7 +87,8 @@ namespace ImgurTelegramBot
                     var title = update.Message.Caption;
                     using(photo.FileStream)
                     {
-                        var uploadResult = UploadPhoto(photo.FileStream, title);
+                        var bytes = ReadFully(photo.FileStream);
+                        var uploadResult = UploadPhoto(bytes, title);
                         if(!string.IsNullOrEmpty(uploadResult?.Link))
                         {
                             var button = new InlineKeyboardButton("Delete", uploadResult.DeleteHash);
@@ -118,6 +119,15 @@ namespace ImgurTelegramBot
                 }
 
                 _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
+            }
+        }
+
+        public static byte[] ReadFully(Stream input)
+        {
+            using (var ms = new MemoryStream())
+            {
+                input.CopyTo(ms);
+                return ms.ToArray();
             }
         }
 
@@ -166,11 +176,11 @@ namespace ImgurTelegramBot
             return null;
         }
 
-        private static IImage UploadPhoto(Stream stream, string title)
+        private static IImage UploadPhoto(byte[] stream, string title)
         {
             var imgur = new ImgurClient(ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.AppSettings["ImgurClientSecret"]);
             var endpoint = new ImageEndpoint(imgur);
-            var result = endpoint.UploadImageStreamAsync(stream, title: title).Result;
+            var result = endpoint.UploadImageBinaryAsync(stream, title: title).Result;
             return result;
         }
 
