@@ -211,13 +211,16 @@ namespace ImgurTelegramBot
             var credit = JsonConvert.DeserializeObject<ImgurCredit>(content);
             if(credit?.data != null)
             {
+                Trace.TraceError(content);
                 reset = UnixTimeStampToDateTime(credit.data.UserReset);
+                Trace.TraceError("reset: " + reset);
 
                 if (credit.data.UserRemaining > 0)
                 {
                     return true;
                 }
             }
+            Trace.TraceError("Credit data is null!");
             return false;
         }
 
