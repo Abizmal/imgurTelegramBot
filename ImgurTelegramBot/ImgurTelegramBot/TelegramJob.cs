@@ -164,7 +164,11 @@ namespace ImgurTelegramBot
             var newUser = false;
             using(var db = new ImgurDbContext())
             {
-                var existingUser = db.Users.FirstOrDefault(u => u.Username.Equals(update.Message.Chat.Username));
+                var existingUser = db.Users.FirstOrDefault(s => s.ChatId == update.Message.Chat.Id)
+                        ?? (update.Message.From.Username != null
+                                ? db.Users.FirstOrDefault(s => s.Username == update.Message.From.Username)
+                                : null);
+
                 if(existingUser == null)
                 {
                     newUser = true;
