@@ -3,6 +3,7 @@ using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 
 using Imgur.API.Authentication.Impl;
 using Imgur.API.Endpoints.Impl;
@@ -102,13 +103,28 @@ namespace ImgurTelegramBot
         private void ProcessUpdate(Update update)
         {
             DateTime? reset;
+            HttpStatusCode statusCode;
 
             if (update.Type == UpdateType.CallbackQueryUpdate)
             {
-                if (!IsLimitRemains(out reset))
+                if (!IsLimitRemains(out reset, out statusCode))
                 {
-                    Trace.TraceError("Reset: " + reset);
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                    if(statusCode == HttpStatusCode.ServiceUnavailable)
+                    {
+                        Trace.TraceError("statusCode: " + statusCode);
+                        _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is temporarily over capacity. Please try again later.");
+                        return;
+                    }
+
+                    if (statusCode == HttpStatusCode.OK)
+                    {
+                        Trace.TraceError("Reset: " + reset);
+                        _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                        return;
+                    }
+
+                    Trace.TraceError("statusCode: " + statusCode);
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is facing problems. Try again later");
                     return;
                 }
 
@@ -134,10 +150,24 @@ namespace ImgurTelegramBot
                     using(photo.FileStream)
                     {
                         var bytes = ReadFully(photo.FileStream);
-                        if(!IsLimitRemains(out reset))
+                        if(!IsLimitRemains(out reset, out statusCode))
                         {
-                            Trace.TraceError("Reset: " + reset);
-                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                            if (statusCode == HttpStatusCode.ServiceUnavailable)
+                            {
+                                Trace.TraceError("statusCode: " + statusCode);
+                                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is temporarily over capacity. Please try again later.");
+                                return;
+                            }
+
+                            if (statusCode == HttpStatusCode.OK)
+                            {
+                                Trace.TraceError("Reset: " + reset);
+                                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                                return;
+                            }
+
+                            Trace.TraceError("statusCode: " + statusCode);
+                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is facing problems. Try again later");
                             return;
                         }
 
@@ -233,13 +263,19 @@ namespace ImgurTelegramBot
             return null;
         }
 
-        private static bool IsLimitRemains(out DateTime? reset)
+        private static bool IsLimitRemains(out DateTime? reset, out HttpStatusCode statusCode)
         {
             Trace.TraceError("Getting limit");
             reset = null;
+            statusCode = HttpStatusCode.OK;
             var imgur = new ImgurClient(ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.AppSettings["ImgurClientSecret"]);
             var endpoint = new ImageEndpoint(imgur);
             var get = endpoint.HttpClient.GetAsync("https://api.imgur.com/3/credits").Result;
+            if (get.StatusCode != HttpStatusCode.OK)
+            {
+                statusCode = get.StatusCode;
+                return false;
+            }
             var content = get.Content.ReadAsStringAsync().Result;
             var credit = JsonConvert.DeserializeObject<ImgurCredit>(content);
             if(credit?.data != null)
