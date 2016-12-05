@@ -13,6 +13,7 @@ using ImgurTelegramBot.Models;
 using Newtonsoft.Json;
 
 using Quartz;
+using Quartz.Impl;
 
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -30,46 +31,68 @@ namespace ImgurTelegramBot
 
         public void Execute(IJobExecutionContext context)
         {
+            try
+            {
+                RunTask();
+            }
+            catch(AggregateException a)
+            {
+                foreach(var exception in a.InnerExceptions)
+                {
+                    Trace.TraceError(exception.Message);
+                    Trace.TraceError(exception.StackTrace);
+                }
+            }
+            catch(Exception e)
+            {
+                Trace.TraceError(e.Message);
+                Trace.TraceError(e.StackTrace);
+            }
+            finally
+            {
+                ScheduleJob();
+            }
+        }
+
+        public static void ScheduleJob()
+        {
+            var schedulerFactory = new StdSchedulerFactory();
+            var scheduler = schedulerFactory.GetScheduler();
+            scheduler.Start();
+
+            var job = JobBuilder.Create<TelegramJob>().Build();
+
+            var trigger = TriggerBuilder.Create().StartAt(new DateTimeOffset(DateTime.Now.AddSeconds(2))).Build();
+
+            scheduler.ScheduleJob(job, trigger);
+        }
+
+        private void RunTask()
+        {
             using(var db = new ImgurDbContext())
             {
-                try
+                var setting = db.Settings.FirstOrDefault();
+                var offset = setting.Offset;
+                _maximumFileSize = setting.MaximumFileSize;
+
+                var updates = _bot.GetUpdatesAsync(offset).Result;
+                foreach(var update in updates)
                 {
-                    var setting = db.Settings.FirstOrDefault();
-                    var offset = setting.Offset;
-                    _maximumFileSize = setting.MaximumFileSize;
-
-                    var updates = _bot.GetUpdatesAsync(offset).Result;
-                    foreach(var update in updates)
+                    try
                     {
-                        try
+                        if(update.CallbackQuery != null || update.Message != null)
                         {
-                            if(update.CallbackQuery != null || update.Message != null)
-                            {
-                                ProcessUpdate(update);
-                            }
+                            ProcessUpdate(update);
                         }
-                        finally
-                        {
-                            db.Settings.First().Offset = update.Id + 1;
-                            db.SaveChanges();
-                        }
-
+                    }
+                    finally
+                    {
                         db.Settings.First().Offset = update.Id + 1;
                         db.SaveChanges();
                     }
-                }
-                catch(AggregateException a)
-                {
-                    foreach(var exception in a.InnerExceptions)
-                    {
-                        Trace.TraceError(exception.Message);
-                        Trace.TraceError(exception.StackTrace);
-                    }
-                }
-                catch(Exception e)
-                {
-                    Trace.TraceError(e.Message);
-                    Trace.TraceError(e.StackTrace);
+
+                    db.Settings.First().Offset = update.Id + 1;
+                    db.SaveChanges();
                 }
             }
         }
