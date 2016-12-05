@@ -39,12 +39,14 @@ namespace ImgurTelegramBot
             {
                 foreach(var exception in a.InnerExceptions)
                 {
+                    Trace.TraceError("================================================================");
                     Trace.TraceError(exception.Message);
                     Trace.TraceError(exception.StackTrace);
                 }
             }
             catch(Exception e)
             {
+                Trace.TraceError("================================================================");
                 Trace.TraceError(e.Message);
                 Trace.TraceError(e.StackTrace);
             }
