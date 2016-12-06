@@ -178,7 +178,7 @@ namespace ImgurTelegramBot
                             var markup = new InlineKeyboardMarkup();
                             markup.InlineKeyboard = new[] { new[] { button } };
 
-                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for you image: {uploadResult.Link}", disableWebPagePreview: true, replyMarkup: markup);
+                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for your image: {uploadResult.Link}", disableWebPagePreview: true, replyMarkup: markup);
                             return;
                         }
                     }
