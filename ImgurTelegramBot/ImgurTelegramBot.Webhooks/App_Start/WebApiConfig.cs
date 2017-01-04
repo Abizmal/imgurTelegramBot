@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Web.Http;
 
@@ -14,9 +15,10 @@ namespace ImgurTelegramBot.Webhooks
             // Web API routes
             config.MapHttpAttributeRoutes();
 
+            var token = ConfigurationManager.AppSettings["Token"];
             config.Routes.MapHttpRoute(
                 name: "DefaultApi",
-                routeTemplate: "api/{controller}/{id}",
+                routeTemplate: "api/" + token + "/{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
             );
         }
