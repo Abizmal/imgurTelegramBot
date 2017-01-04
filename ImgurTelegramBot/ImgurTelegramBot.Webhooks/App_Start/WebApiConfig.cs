@@ -15,7 +15,7 @@ namespace ImgurTelegramBot.Webhooks
             // Web API routes
             config.MapHttpAttributeRoutes();
 
-            var token = ConfigurationManager.AppSettings["Token"];
+            var token = ConfigurationManager.AppSettings["Token"].Split(':')[1];
             config.Routes.MapHttpRoute(
                 name: "DefaultApi",
                 routeTemplate: "api/" + token + "/{controller}/{id}",
