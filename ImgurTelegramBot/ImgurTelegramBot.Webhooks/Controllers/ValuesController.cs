@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -12,7 +13,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
         // GET api/values
         public IEnumerable<string> Get()
         {
-            return new string[] { "value1", "value2" };
+            return new string[] { ConfigurationManager.AppSettings["ImgurClientId"], ConfigurationManager.ConnectionStrings["ImgurDbConnectionString"].ToString() };
         }
 
         // GET api/values/5
