@@ -33,6 +33,11 @@ namespace ImgurTelegramBot.Webhooks.Controllers
             _bot.SendTextMessageAsync(update.Message.Chat.Id, update.Message.Text);
         }
 
+        public string Get()
+        {
+            return "it works";
+        }
+
         public void Execute()
         {
             try
