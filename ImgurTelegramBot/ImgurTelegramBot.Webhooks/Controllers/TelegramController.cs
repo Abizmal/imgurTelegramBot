@@ -28,8 +28,9 @@ namespace ImgurTelegramBot.Webhooks.Controllers
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
         private int _maximumFileSize;
 
-        public void Post(Update update)
+        public void Post(string json)
         {
+            var update = JsonConvert.DeserializeObject<Update>(json);
             _bot.SendTextMessageAsync(update.Message.Chat.Id, update.Message.Text);
         }
 
