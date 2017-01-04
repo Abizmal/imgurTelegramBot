@@ -1,4 +1,4 @@
-﻿namespace ImgurTelegramBot.Models
+﻿namespace ImgurTelegramBot.Webhooks.Models
 {
     public class ImgurCredit
     {

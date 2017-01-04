@@ -1,11 +1,10 @@
-using ImgurTelegramBot.Models;
+using System.Data.Entity.Migrations;
+using System.Linq;
 
-namespace ImgurTelegramBot.Migrations
+using ImgurTelegramBot.Webhooks.Models;
+
+namespace ImgurTelegramBot.Webhooks.Migrations
 {
-    using System;
-    using System.Data.Entity;
-    using System.Data.Entity.Migrations;
-    using System.Linq;
 
     internal sealed class Configuration : DbMigrationsConfiguration<ImgurDbContext>
     {

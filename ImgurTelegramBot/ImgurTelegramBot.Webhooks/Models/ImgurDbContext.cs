@@ -1,6 +1,6 @@
 ﻿using System.Data.Entity;
 
-namespace ImgurTelegramBot.Models
+namespace ImgurTelegramBot.Webhooks.Models
 {
     public class ImgurDbContext: DbContext
     {

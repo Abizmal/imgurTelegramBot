@@ -9,7 +9,7 @@ using Imgur.API.Authentication.Impl;
 using Imgur.API.Endpoints.Impl;
 using Imgur.API.Models;
 
-using ImgurTelegramBot.Models;
+using ImgurTelegramBot.Webhooks.Models;
 
 using Newtonsoft.Json;
 
@@ -20,6 +20,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 using File = System.IO.File;
+using User = ImgurTelegramBot.Webhooks.Models.User;
 
 namespace ImgurTelegramBot
 {
@@ -225,7 +226,7 @@ namespace ImgurTelegramBot
                 if(existingUser == null)
                 {
                     newUser = true;
-                    db.Users.Add(new Models.User {
+                    db.Users.Add(new User {
                                      ChatId = update.Message.Chat.Id,
                                      Created = DateTime.Now,
                                      MessagesCount = 1,
