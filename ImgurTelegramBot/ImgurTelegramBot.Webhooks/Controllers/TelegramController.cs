@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Web.Http;
 
 using Imgur.API.Authentication.Impl;
 using Imgur.API.Endpoints.Impl;
@@ -13,18 +14,16 @@ using ImgurTelegramBot.Webhooks.Models;
 
 using Newtonsoft.Json;
 
-
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
-using File = System.IO.File;
 using User = ImgurTelegramBot.Webhooks.Models.User;
 
-namespace ImgurTelegramBot
+namespace ImgurTelegramBot.Webhooks.Controllers
 {
-    public class TelegramJob
+    public class TelegramController:ApiController
     {
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
         private int _maximumFileSize;
