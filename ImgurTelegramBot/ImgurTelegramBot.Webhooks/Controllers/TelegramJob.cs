@@ -13,8 +13,6 @@ using ImgurTelegramBot.Models;
 
 using Newtonsoft.Json;
 
-using Quartz;
-using Quartz.Impl;
 
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -25,12 +23,12 @@ using File = System.IO.File;
 
 namespace ImgurTelegramBot
 {
-    public class TelegramJob: IJob
+    public class TelegramJob
     {
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
         private int _maximumFileSize;
 
-        public void Execute(IJobExecutionContext context)
+        public void Execute()
         {
             try
             {
@@ -53,22 +51,22 @@ namespace ImgurTelegramBot
             }
             finally
             {
-                ScheduleJob();
+//                ScheduleJob();
             }
         }
 
-        public static void ScheduleJob()
-        {
-            var schedulerFactory = new StdSchedulerFactory();
-            var scheduler = schedulerFactory.GetScheduler();
-            scheduler.Start();
-
-            var job = JobBuilder.Create<TelegramJob>().Build();
-
-            var trigger = TriggerBuilder.Create().StartAt(new DateTimeOffset(DateTime.Now.AddSeconds(2))).Build();
-
-            scheduler.ScheduleJob(job, trigger);
-        }
+//        public static void ScheduleJob()
+//        {
+//            var schedulerFactory = new StdSchedulerFactory();
+//            var scheduler = schedulerFactory.GetScheduler();
+//            scheduler.Start();
+//
+//            var job = JobBuilder.Create<TelegramJob>().Build();
+//
+//            var trigger = TriggerBuilder.Create().StartAt(new DateTimeOffset(DateTime.Now.AddSeconds(2))).Build();
+//
+//            scheduler.ScheduleJob(job, trigger);
+//        }
 
         private void RunTask()
         {
