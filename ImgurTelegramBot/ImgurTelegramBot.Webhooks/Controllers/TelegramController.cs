@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Web.Http;
 
 using Imgur.API.Authentication.Impl;
@@ -28,10 +29,10 @@ namespace ImgurTelegramBot.Webhooks.Controllers
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
         private int _maximumFileSize;
 
-        public void Post(string json)
+        public HttpResponseMessage Post([FromBody]Update update)
         {
-            var update = JsonConvert.DeserializeObject<Update>(json);
             _bot.SendTextMessageAsync(update.Message.Chat.Id, update.Message.Text);
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }
 
         public string Get()
@@ -39,7 +40,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
             return "it works";
         }
 
-        public void Execute()
+        private void Execute()
         {
             try
             {
@@ -214,7 +215,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
             }
         }
 
-        public static byte[] ReadFully(Stream input)
+        private static byte[] ReadFully(Stream input)
         {
             using (var ms = new MemoryStream())
             {
@@ -302,7 +303,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
             return false;
         }
 
-        public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
+        private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
         {
             // Unix timestamp is seconds past epoch
             var dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
