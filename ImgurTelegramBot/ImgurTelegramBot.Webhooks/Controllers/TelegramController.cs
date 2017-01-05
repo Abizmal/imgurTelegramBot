@@ -30,9 +30,6 @@ namespace ImgurTelegramBot.Webhooks.Controllers
 
         public void Post([FromBody]Update update)
         {
-            Trace.TraceInformation("info");
-            Trace.TraceWarning("warning");
-            Trace.TraceError("error");
             try
             {
                 if (update.CallbackQuery != null || update.Message != null)
@@ -69,7 +66,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                     if(statusCode == HttpStatusCode.ServiceUnavailable)
                     {
                         Trace.TraceError("statusCode: " + statusCode);
-                        _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is temporarily over capacity. Please try again later.");
+                        _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is temporarily over capacity. Please try again later.");
                         return;
                     }
 
@@ -81,7 +78,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                     }
 
                     Trace.TraceError("statusCode: " + statusCode);
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is facing problems. Try again later");
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is facing problems. Try again later");
                     return;
                 }
 
@@ -97,7 +94,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
             {
                 if(SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
                 {
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Welcome! Just forward me a message with an image");
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, "Welcome! Just forward me a message with an image");
                 }
                 var fileId = GetFileId(update);
                 if(fileId != null)
@@ -112,7 +109,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                             if (statusCode == HttpStatusCode.ServiceUnavailable)
                             {
                                 Trace.TraceError("statusCode: " + statusCode);
-                                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is temporarily over capacity. Please try again later.");
+                                _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is temporarily over capacity. Please try again later.");
                                 return;
                             }
 
@@ -124,7 +121,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                             }
 
                             Trace.TraceError("statusCode: " + statusCode);
-                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, Imgur is facing problems. Try again later");
+                            _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is facing problems. Try again later");
                             return;
                         }
 
@@ -253,7 +250,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
         private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
         {
             // Unix timestamp is seconds past epoch
-            var dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+            var dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
             return dtDateTime;
         }
