@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Web.Http;
 
 using Imgur.API.Authentication.Impl;
@@ -27,86 +26,34 @@ namespace ImgurTelegramBot.Webhooks.Controllers
     public class TelegramController:ApiController
     {
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
-        private int _maximumFileSize;
+        private const int MaximumFileSize = 10485760;
 
-        public HttpResponseMessage Post([FromBody]Update update)
+        public void Post([FromBody]Update update)
         {
-            _bot.SendTextMessageAsync(update.Message.Chat.Id, update.Message.Text);
-            return new HttpResponseMessage(HttpStatusCode.OK);
-        }
-
-        public string Get()
-        {
-            return "it works";
-        }
-
-        private void Execute()
-        {
+            Trace.TraceInformation("info");
+            Trace.TraceWarning("warning");
+            Trace.TraceError("error");
             try
             {
-                RunTask();
+                if (update.CallbackQuery != null || update.Message != null)
+                {
+                    ProcessUpdate(update);
+                }
             }
-            catch(AggregateException a)
+            catch (AggregateException a)
             {
-                foreach(var exception in a.InnerExceptions)
+                foreach (var exception in a.InnerExceptions)
                 {
                     Trace.TraceError("================================================================");
                     Trace.TraceError(exception.Message);
                     Trace.TraceError(exception.StackTrace);
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Trace.TraceError("================================================================");
                 Trace.TraceError(e.Message);
                 Trace.TraceError(e.StackTrace);
-            }
-            finally
-            {
-//                ScheduleJob();
-            }
-        }
-
-//        public static void ScheduleJob()
-//        {
-//            var schedulerFactory = new StdSchedulerFactory();
-//            var scheduler = schedulerFactory.GetScheduler();
-//            scheduler.Start();
-//
-//            var job = JobBuilder.Create<TelegramJob>().Build();
-//
-//            var trigger = TriggerBuilder.Create().StartAt(new DateTimeOffset(DateTime.Now.AddSeconds(2))).Build();
-//
-//            scheduler.ScheduleJob(job, trigger);
-//        }
-
-        private void RunTask()
-        {
-            using(var db = new ImgurDbContext())
-            {
-                var setting = db.Settings.FirstOrDefault();
-                var offset = setting.Offset;
-                _maximumFileSize = setting.MaximumFileSize;
-
-                var updates = _bot.GetUpdatesAsync(offset).Result;
-                foreach(var update in updates)
-                {
-                    try
-                    {
-                        if(update.CallbackQuery != null || update.Message != null)
-                        {
-                            ProcessUpdate(update);
-                        }
-                    }
-                    finally
-                    {
-                        db.Settings.First().Offset = update.Id + 1;
-                        db.SaveChanges();
-                    }
-
-                    db.Settings.First().Offset = update.Id + 1;
-                    db.SaveChanges();
-                }
             }
         }
 
@@ -257,7 +204,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
         {
             if(update.Message.Photo != null && update.Message.Photo.Length > 0)
             {
-                var correctSizes = update.Message.Photo.Where(p => p.FileSize <= _maximumFileSize).ToList();
+                var correctSizes = update.Message.Photo.Where(p => p.FileSize <= MaximumFileSize).ToList();
                 if(correctSizes.Count == 0)
                 {
                     _bot.SendTextMessageAsync(update.Message.Chat.Id, "Image size should be less them 10Mb");
