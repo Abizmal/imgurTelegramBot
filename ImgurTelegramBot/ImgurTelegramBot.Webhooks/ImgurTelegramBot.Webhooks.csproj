@@ -143,6 +143,11 @@
     </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\Data.cs" />
+    <Compile Include="Models\GfyCatKey.cs" />
+    <Compile Include="Models\GfyCatStatus.cs" />
+    <Compile Include="Models\GfyCatToken.cs" />
+    <Compile Include="Models\GfyGetResult.cs" />
+    <Compile Include="Models\GfyItem.cs" />
     <Compile Include="Models\ImgurCredit.cs" />
     <Compile Include="Models\ImgurDbContext.cs" />
     <Compile Include="Models\Setting.cs" />

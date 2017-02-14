@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Threading;
 using System.Web.Http;
 
 using Imgur.API.Authentication.Impl;
@@ -27,6 +29,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
     {
         private readonly TelegramBotClient _bot = new TelegramBotClient(ConfigurationManager.AppSettings["Token"]);
         private const int MaximumFileSize = 10485760;
+        private const string GfyCatBaseUrl = "https://api.gfycat.com/v1/gfycats/";
 
         public void Post([FromBody]Update update)
         {
@@ -61,87 +64,85 @@ namespace ImgurTelegramBot.Webhooks.Controllers
 
             if (update.Type == UpdateType.CallbackQueryUpdate)
             {
-                if (!IsLimitRemains(out reset, out statusCode))
+                var data = update.CallbackQuery.Data.Split(' ');
+
+                switch(data[0])
                 {
-                    if(statusCode == HttpStatusCode.ServiceUnavailable)
-                    {
-                        Trace.TraceError("statusCode: " + statusCode);
-                        _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is temporarily over capacity. Please try again later.");
-                        return;
-                    }
+                    case "imgur":
+                        if (!IsLimitRemains(out reset, out statusCode))
+                        {
+                            ImgurLimitProblems(update, statusCode, reset);
+                            return;
+                        }
 
-                    if (statusCode == HttpStatusCode.OK)
-                    {
-                        Trace.TraceError("Reset: " + reset);
-                        _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
-                        return;
-                    }
-
-                    Trace.TraceError("statusCode: " + statusCode);
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is facing problems. Try again later");
-                    return;
-                }
-
-                if (DeleteImage(update.CallbackQuery.Data))
-                {
-
-                    _bot.AnswerCallbackQueryAsync(update.CallbackQuery.Id, "Deleted");
-                    var result = _bot.EditMessageReplyMarkupAsync(update.CallbackQuery.Message.Chat.Id, update.CallbackQuery.Message.MessageId).Result;
-                    return;
+                        if (DeleteImage(data[1]))
+                        {
+                            _bot.AnswerCallbackQueryAsync(update.CallbackQuery.Id, "Deleted");
+                            var result = _bot.EditMessageReplyMarkupAsync(update.CallbackQuery.Message.Chat.Id, update.CallbackQuery.Message.MessageId).Result;
+                        }
+                        break;
+                    case "gfycat":
+//                        if (DeleteVideo(data[1]))
+//                        {
+//                            _bot.AnswerCallbackQueryAsync(update.CallbackQuery.Id, "Deleted");
+//                            var result = _bot.EditMessageReplyMarkupAsync(update.CallbackQuery.Message.Chat.Id, update.CallbackQuery.Message.MessageId).Result;
+//                        }
+                        break;
                 }
             }
             else
             {
                 if(SetStats(update) && !string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/start"))
                 {
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, "Welcome! Just forward me a message with an image");
+                    _bot.SendTextMessageAsync(update.Message.Chat.Id, "Welcome! Just forward me a message with an image or upload one");
                 }
                 var fileId = GetFileId(update);
-                if(fileId != null)
+                var currentType = update.Message.Document?.MimeType?.Split('/')[0];
+
+                if (fileId != null)
                 {
-                    var photo = _bot.GetFileAsync(fileId).Result;
+                    var media = _bot.GetFileAsync(fileId).Result;
                     var title = update.Message.Caption;
-                    using(photo.FileStream)
+                    using(media.FileStream)
                     {
-                        var bytes = ReadFully(photo.FileStream);
-                        if(!IsLimitRemains(out reset, out statusCode))
+                        var bytes = ReadFully(media.FileStream);
+                        switch(currentType)
                         {
-                            if (statusCode == HttpStatusCode.ServiceUnavailable)
-                            {
-                                Trace.TraceError("statusCode: " + statusCode);
-                                _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is temporarily over capacity. Please try again later.");
-                                return;
-                            }
+                            case "video":
+                                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Please, wait, it may take few seconds");
+                                var result = UploadVideo(bytes);
 
-                            if (statusCode == HttpStatusCode.OK)
-                            {
-                                Trace.TraceError("Reset: " + reset);
-                                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
-                                return;
-                            }
+                                if (result != null)
+                                {
+//                                    var button = new InlineKeyboardButton("Delete", "gfycat " + status.gfyId);
+//                                    var markup = new InlineKeyboardMarkup();
+//                                    markup.InlineKeyboard = new[] { new[] { button } };
+//
+                                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for your gif:{result.gifUrl} \n And here is webm version: {result.webmUrl}", disableWebPagePreview: true /*, replyMarkup: markup*/);
+                                    return;
+                                }
+                                break;
+                            case "image":
+                                if (!IsLimitRemains(out reset, out statusCode))
+                                {
+                                    ImgurLimitProblems(update, statusCode, reset);
+                                    return;
+                                }
 
-                            Trace.TraceError("statusCode: " + statusCode);
-                            _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is facing problems. Try again later");
-                            return;
-                        }
+                                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Please, wait, it may take few seconds");
+                                var uploadResult = UploadPhoto(bytes, title);
+                                if (!string.IsNullOrEmpty(uploadResult?.Link))
+                                {
+                                    var button = new InlineKeyboardButton("Delete", "imgur " + uploadResult.DeleteHash);
+                                    var markup = new InlineKeyboardMarkup();
+                                    markup.InlineKeyboard = new[] { new[] { button } };
 
-                        var uploadResult = UploadPhoto(bytes, title);
-                        if (!string.IsNullOrEmpty(uploadResult?.Link))
-                        {
-                            var button = new InlineKeyboardButton("Delete", uploadResult.DeleteHash);
-                            var markup = new InlineKeyboardMarkup();
-                            markup.InlineKeyboard = new[] { new[] { button } };
-
-                            _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for your image: {uploadResult.Link}", disableWebPagePreview: true, replyMarkup: markup);
-                            return;
+                                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Here is direct link for your image: {uploadResult.Link}", disableWebPagePreview: true, replyMarkup: markup);
+                                    return;
+                                }
+                                break;
                         }
                     }
-                }
-                var currentType = update.Message.Document?.MimeType?.Split('/')[0];
-                if(currentType != null && !currentType.Equals("image"))
-                {
-                    _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Something went wrong. Your image should be less then 10 MB and be, actually, image, not {update.Message.Document.MimeType}.");
-                    return;
                 }
 
                 if(!string.IsNullOrEmpty(update.Message.Text) && update.Message.Text.Equals("/stat") && update.Message.Chat.Username.Equals("Immelstorn"))
@@ -155,7 +156,107 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                     return;
                 }
 
-                _bot.SendTextMessageAsync(update.Message.Chat.Id, "Something went wrong. Your image should be less then 10 MB and be, actually, image.");
+                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Something went wrong. Please try again. Also remember that your image should be less then 10 MB and be, actually, image or gif.");
+            }
+        }
+
+        private void ImgurLimitProblems(Update update, HttpStatusCode statusCode, DateTime? reset)
+        {
+            if(statusCode == HttpStatusCode.ServiceUnavailable)
+            {
+                Trace.TraceError("statusCode: " + statusCode);
+                _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is temporarily over capacity. Please try again later.");
+                return;
+            }
+
+            if(statusCode == HttpStatusCode.OK)
+            {
+                Trace.TraceError("Reset: " + reset);
+                _bot.SendTextMessageAsync(update.Message.Chat.Id, $"Sorry, I've faced an Imgur Rate limit and have to wait {reset - DateTime.UtcNow}");
+                return;
+            }
+
+            Trace.TraceError("statusCode: " + statusCode);
+            _bot.SendTextMessageAsync(update.Message.Chat.Id, "Sorry, Imgur is facing problems. Try again later");
+        }
+
+
+        private GfyItem UploadVideo(byte[] bytes)
+        {
+            var token = GetGfyCatToken();
+
+            const string uploadUrl = "https://filedrop.gfycat.com";
+            const string statusUrl = GfyCatBaseUrl + "fetch/status/";
+
+            using(var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Authorization", token.access_token);
+                client.DefaultRequestHeaders.Add("ContentType", "application/json");
+                var key = client.PostAsync(GfyCatBaseUrl, null).Result;
+                var gfyCatKey = JsonConvert.DeserializeObject<GfyCatKey>(key.Content.ReadAsStringAsync().Result);
+
+                using(var content = new MultipartFormDataContent())
+                {
+                    client.DefaultRequestHeaders.Clear();
+                    content.Add(new StringContent(gfyCatKey.gfyname), "key");
+                    content.Add(new ByteArrayContent(bytes), "file", gfyCatKey.gfyname);
+
+                    using(var message = client.PostAsync(uploadUrl, content).Result)
+                    {
+                        if(message.IsSuccessStatusCode)
+                        {
+                            client.DefaultRequestHeaders.Add("Authorization", "Bearer " + token.access_token);
+
+                            var counter = 0;
+                            while (true)
+                            {
+                                if(counter++ == 100)
+                                {
+                                    return null;
+                                }
+                                var status = client.GetStringAsync(statusUrl + gfyCatKey.gfyname).Result;
+                                var gfyCatStatus = JsonConvert.DeserializeObject<GfyCatStatus>(status);
+                                if (!gfyCatStatus.task.ToLower().Equals("complete"))
+                                {
+                                    Thread.Sleep(100);
+                                    continue;
+                                }
+
+                                var get = client.GetStringAsync(GfyCatBaseUrl + gfyCatStatus.gfyname.ToLower()).Result;
+                                var result = JsonConvert.DeserializeObject<GfyGetResult>(get);
+
+                                return result.gfyItem;
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        private GfyCatToken GetGfyCatToken()
+        {
+            const string url = "https://api.gfycat.com/v1/oauth/token";
+            var json = $"{{'client_id':'{ConfigurationManager.AppSettings["GfycatClientId"]}', 'client_secret': '{ConfigurationManager.AppSettings["GfycatClientSecret"]}', 'grant_type': 'client_credentials'}}";
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.ContentType] = "application/json";
+                var response = client.UploadString(url, "POST", json);
+                var token = JsonConvert.DeserializeObject<GfyCatToken>(response);
+                return token;
+            }
+        }
+
+        private bool DeleteVideo(string data)
+        {
+            var token = GetGfyCatToken();
+
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Authorization", token.access_token);
+                client.DefaultRequestHeaders.Add("ContentType", "application/json");
+                var result = client.DeleteAsync(GfyCatBaseUrl + data).Result;
+                return result.IsSuccessStatusCode;
             }
         }
 
@@ -210,7 +311,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                 return correctSizes.First(ph => ph.FileSize == update.Message.Photo.Max(p => p.FileSize)).FileId;
             }
 
-            if (update.Message.Document != null && (update.Message.Document.MimeType.StartsWith("image")))
+            if (update.Message.Document != null && (update.Message.Document.MimeType.StartsWith("image") || update.Message.Document.MimeType.StartsWith("video")))
             {
                 return update.Message.Document.FileId;
             }
@@ -270,5 +371,7 @@ namespace ImgurTelegramBot.Webhooks.Controllers
             var result = endpoint.DeleteImageAsync(data).Result;
             return result;
         }
+
+       
     }
 }
