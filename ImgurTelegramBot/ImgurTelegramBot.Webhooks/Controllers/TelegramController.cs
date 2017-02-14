@@ -98,7 +98,10 @@ namespace ImgurTelegramBot.Webhooks.Controllers
                 }
                 var fileId = GetFileId(update);
                 var currentType = update.Message.Document?.MimeType?.Split('/')[0];
-
+                if(currentType == null && update.Message.Photo != null && update.Message.Photo.Length > 0)
+                {
+                    currentType = "image";
+                }
                 if (fileId != null)
                 {
                     var media = _bot.GetFileAsync(fileId).Result;
