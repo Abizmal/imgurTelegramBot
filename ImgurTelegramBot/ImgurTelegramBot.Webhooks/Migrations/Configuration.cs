@@ -15,9 +15,9 @@ namespace ImgurTelegramBot.Webhooks.Migrations
 
         protected override void Seed(ImgurDbContext context)
         {
-            if(!context.Settings.Any())
+            if(!context.ImgurSettings.Any())
             {
-                context.Settings.Add(new Setting {
+                context.ImgurSettings.Add(new ImgurSetting {
                                          Offset = 169828489,
                                          MaximumFileSize = 10485760
                                      });

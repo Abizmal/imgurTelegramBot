@@ -7,6 +7,6 @@ namespace ImgurTelegramBot.Webhooks.Models
         public ImgurDbContext(): base("name=ImgurDbConnectionString") { }
 
         public DbSet<User> Users { get; set; }
-        public DbSet<Setting> Settings { get; set; }
+        public DbSet<ImgurSetting> ImgurSettings { get; set; }
     }
 }

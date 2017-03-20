@@ -141,6 +141,10 @@
     <Compile Include="Migrations\201611221438490_init.Designer.cs">
       <DependentUpon>201611221438490_init.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201703200829221_renametable.cs" />
+    <Compile Include="Migrations\201703200829221_renametable.Designer.cs">
+      <DependentUpon>201703200829221_renametable.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\Data.cs" />
     <Compile Include="Models\GfyCatKey.cs" />
@@ -150,7 +154,7 @@
     <Compile Include="Models\GfyItem.cs" />
     <Compile Include="Models\ImgurCredit.cs" />
     <Compile Include="Models\ImgurDbContext.cs" />
-    <Compile Include="Models\Setting.cs" />
+    <Compile Include="Models\ImgurSetting.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -167,6 +171,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Migrations\201611221438490_init.resx">
       <DependentUpon>201611221438490_init.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201703200829221_renametable.resx">
+      <DependentUpon>201703200829221_renametable.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

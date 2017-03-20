@@ -1,6 +1,6 @@
 ﻿namespace ImgurTelegramBot.Webhooks.Models
 {
-    public class Setting
+    public class ImgurSetting
     {
         public int Id { get; set; }
         public int Offset { get; set; }
